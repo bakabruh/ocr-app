@@ -1,17 +1,20 @@
 package com.example.ocrapp
 
+import android.Manifest
 import android.content.Intent
 import android.graphics.Bitmap
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
 import android.provider.MediaStore
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.databinding.DataBindingUtil
 import com.example.ocrapp.databinding.ActivityMainBinding
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
-import java.lang.Exception
+import kotlin.Exception
 
 class MainActivity : AppCompatActivity() {
 
@@ -19,8 +22,14 @@ class MainActivity : AppCompatActivity() {
 
     lateinit var _binding: ActivityMainBinding
 
-    private val REQUEST_IMAGE_CAPTURE = 1
+    private val REQUEST_IMAGE_CAPTURE = 1 // Constante pour identifier la demande de capture d'image
+    private val REQUEST_IMAGE_PICK = 2 // Constante pour identifier la demande de sélection d'image dans la galerie
     private var imageBitmap: Bitmap? = null
+
+    private val permissions = arrayOf(
+        Manifest.permission.CAMERA,
+        Manifest.permission.READ_MEDIA_IMAGES
+    )
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,51 +38,72 @@ class MainActivity : AppCompatActivity() {
         _binding = DataBindingUtil.setContentView(this, R.layout.activity_main)
 
         _binding.apply {
-
             screenShotButton.setOnClickListener {
-
-                takeImage()
+                askMultiplePermission.launch(permissions)
 
                 textView.text = ""
-
             }
 
             detectTextImageButton.setOnClickListener {
-
                 processImage()
-
             }
-
         }
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
 
-        if(requestCode == REQUEST_IMAGE_CAPTURE && resultCode == RESULT_OK) {
-            val extras:Bundle? = data?.extras
-
-            imageBitmap = extras?.get("data") as Bitmap
-
-            if (imageBitmap != null) {
-                _binding.imageView.setImageBitmap(imageBitmap)
+        if (resultCode == RESULT_OK) {
+            when (requestCode) {
+                REQUEST_IMAGE_CAPTURE -> {
+                    imageBitmap = data?.extras?.get("data") as Bitmap
+                    if (imageBitmap != null) {
+                        _binding.imageView.setImageBitmap(imageBitmap)
+                    }
+                }
+                REQUEST_IMAGE_PICK -> {
+                    val imageUri = data?.data
+                    imageBitmap = MediaStore.Images.Media.getBitmap(contentResolver, imageUri)
+                    if (imageBitmap != null) {
+                        _binding.imageView.setImageBitmap(imageBitmap)
+                    }
+                }
             }
         }
     }
 
-    private fun takeImage() {
-        val intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-
+    private fun dispatchTakePictureIntent() {
+        val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
         try {
-
-            startActivityForResult(intent, REQUEST_IMAGE_CAPTURE)
-
-
-        } catch (e:Exception) {
-
-            println(e)
-
+            startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE)
         }
+        catch (e:Exception) {
+            println(e)
+        }
+    }
+
+    private fun dispatchPickPictureIntent() {
+        val pickPictureIntent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+        startActivityForResult(pickPictureIntent, REQUEST_IMAGE_PICK)
+    }
+
+    private fun openImagePicker() {
+        val options = arrayOf<CharSequence>("Prendre une photo", "Choisir depuis la galerie", "Annuler")
+
+        val builder = AlertDialog.Builder(this)
+        builder.setTitle("Sélectionner une photo")
+        builder.setItems(options) { dialog, item ->
+            when {
+                options[item] == "Prendre une photo" -> {
+                    dispatchTakePictureIntent()
+                }
+                options[item] == "Choisir depuis la galerie" -> {
+                    dispatchPickPictureIntent()
+                }
+                options[item] == "Annuler" -> dialog.dismiss()
+            }
+        }
+        builder.show()
     }
 
     private fun processImage() {
@@ -102,4 +132,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private val askMultiplePermission = registerForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ){ result ->
+        var allGranted = true
+        for (isGranted in result.values) {
+            allGranted = allGranted && isGranted
+        }
+
+        if (allGranted) {
+            openImagePicker()
+        } else {
+            Toast.makeText(this, "Permission denied", Toast.LENGTH_SHORT).show()
+        }
+    }
 }
