@@ -26,6 +26,7 @@ class MainActivity : AppCompatActivity() {
     private val REQUEST_IMAGE_PICK = 2 // Constante pour identifier la demande de sélection d'image dans la galerie
     private var imageBitmap: Bitmap? = null
 
+    // Array des permissions à demander à l'utilisateur
     private val permissions = arrayOf(
         Manifest.permission.CAMERA,
         Manifest.permission.READ_MEDIA_IMAGES
@@ -39,6 +40,7 @@ class MainActivity : AppCompatActivity() {
 
         _binding.apply {
             screenShotButton.setOnClickListener {
+                // On donne à la fonction askMultiplePermissions la liste de permissions à demander au click du bouton
                 askMultiplePermission.launch(permissions)
 
                 textView.text = ""
@@ -72,6 +74,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Fonction pour récupérer une photo prise
     private fun dispatchTakePictureIntent() {
         val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
         try {
@@ -82,11 +85,14 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Fonction pour récupérer une image depuis la galerie
     private fun dispatchPickPictureIntent() {
         val pickPictureIntent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
         startActivityForResult(pickPictureIntent, REQUEST_IMAGE_PICK)
     }
 
+    // Fonction qui permet d'afficher un choix de source à l'utilisateur
+    // Puis lance la fonction selon la source choisie
     private fun openImagePicker() {
         val options = arrayOf<CharSequence>("Prendre une photo", "Choisir depuis la galerie", "Annuler")
 
@@ -106,6 +112,7 @@ class MainActivity : AppCompatActivity() {
         builder.show()
     }
 
+    // Fonction lisant l'image et récupérant le texte présent sur celle-ci
     private fun processImage() {
         if (imageBitmap != null) {
             val image = imageBitmap?.let {
@@ -132,6 +139,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Fonction demandant à l'utilisateur une liste de permissions à demander
     private val askMultiplePermission = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ){ result ->
